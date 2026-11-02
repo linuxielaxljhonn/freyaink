@@ -117,6 +117,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px
 .shapes button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--muted)}
 .shapes button svg{width:42px;height:24px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round}
 .shapes button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
+.orns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.orns button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;color:var(--muted);line-height:1.2}
+.orns button svg{width:46px;height:28px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round}
+.orns button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
 .lstage{background:#fff;border-radius:var(--r);min-height:240px;display:grid;place-items:center;padding:18px;position:relative}
 .lstage canvas{max-width:100%;max-height:55vh;width:auto;height:auto;display:block}
 @media(min-width:861px){.a-prev{position:sticky;top:78px}}
@@ -374,6 +378,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px
         <label class="f">Estilo de letra</label>
         <div class="seg" id="lStyle"><button data-st="fill">Relleno</button><button data-st="outline">Solo contorno</button></div>
         <div class="ctl"><div class="lab"><span id="lBoldLab">Engrosar letra</span><b id="vLBold"></b></div><input type="range" id="lBold" min="0" max="10"></div>
+        <h2 style="margin-top:20px">Adornos <span class="pill">línea fina</span></h2>
+        <div class="orns" id="lOrns"></div>
+        <div id="lOCtl">
+          <label class="f">Dónde</label>
+          <div class="seg" id="lOPos"><button data-p="both">Inicio y final</button><button data-p="start">Inicio</button><button data-p="end">Final</button><button data-p="below">Debajo</button><button data-p="above">Encima</button></div>
+          <div class="ctl"><div class="lab"><span>Tamaño del adorno</span><b id="vLOSize"></b></div><input type="range" id="lOSize" min="30" max="250"></div>
+          <div class="ctl"><div class="lab"><span>Separación del texto</span><b id="vLOGap"></b></div><input type="range" id="lOGap" min="-30" max="80"></div>
+          <div class="ctl"><div class="lab"><span>Subir / bajar</span><b id="vLOOff"></b></div><input type="range" id="lOOff" min="-80" max="80"></div>
+          <div class="ctl"><div class="lab"><span>Grosor de la línea del adorno</span><b id="vLOSw"></b></div><input type="range" id="lOSw" min="1" max="8"></div>
+          <p class="hint">Diseños propios de FreyaInk, pensados para stencil. En «Debajo» y «Encima» el adorno se pone en espejo a los dos lados del centro.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -1050,8 +1065,14 @@ async function doRenderL(){
       if(i===0&&ls&&(L.shape==='bridge'||L.shape==='valley'||L.shape==='wave')) return warp(ls,L.shape,L.curves[L.shape]);
       return ls;
     });
+    if(L.orn.id!=='none'&&['both','start','end'].includes(L.orn.pos)&&layers[0]) layers[0]=await addSides(layers[0],sp[0].px);
     out=stack(layers);
   }
+  if(out&&L.orn.id!=='none'){
+    if(L.shape==='circle'&&['both','start','end'].includes(L.orn.pos)) out=await addSides(out,px);
+    else if(L.orn.pos==='below'||L.orn.pos==='above') out=await addTB(out,px);
+  }
+  if(tok!==lTok) return;
   $('lBusy').classList.remove('on');
   LC=out;
   if(!out){ cv.width=500; cv.height=120; return; }
@@ -1107,6 +1128,86 @@ $('lFont2').onchange=()=>{ L.font2=$('lFont2').value; persist(); renderL(); };
 $('lWidth').addEventListener('input',()=>{ const v=parseFloat(String($('lWidth').value).replace(',','.')); if(v>0){ L.widthCm=v; } updLDims(); });
 $('lWidth').addEventListener('change',persist);
 buildCats(); buildFont2(); syncL();
+/* ---------------- Adornos (diseños propios, línea fina) ---------------- */
+function mandalaD(){
+  let d='<path d="M0 50 H40" stroke-dasharray="0.1 6"/><circle cx="76" cy="50" r="5"/>';
+  for(let k=0;k<8;k++) d+=`<path transform="rotate(${k*45} 76 50)" d="M76 45 C72 38 72 32 76 27 C80 32 80 38 76 45Z"/>`;
+  d+='<circle cx="76" cy="50" r="23"/>';
+  for(let k=0;k<16;k++) d+=`<path transform="rotate(${k*22.5} 76 50)" d="M76 27 C73 23 73 20 76 17 C79 20 79 23 76 27Z"/>`;
+  for(let k=0;k<16;k++){ const a=(k*22.5+11.25)*Math.PI/180; d+=`<circle cx="${(76+Math.sin(a)*30).toFixed(1)}" cy="${(50-Math.cos(a)*30).toFixed(1)}" r="1.6" fill="#000" stroke="none"/>`; }
+  return d;
+}
+function oliveD(){
+  let d='<path d="M0 54 C40 52 90 46 146 36"/>';
+  for(let i=0;i<6;i++){ const x=18+i*21, y=54-(x/146)*16-(x>40?2:0), s=1-i*0.06;
+    d+=`<path transform="translate(${x} ${y}) rotate(-38) scale(${s})" d="M0 0 C6 -7 19 -7 26 0 C19 7 6 7 0 0Z"/>`;
+    d+=`<path transform="translate(${x+9} ${y-1}) rotate(36) scale(${s})" d="M0 0 C6 -7 19 -7 26 0 C19 7 6 7 0 0Z"/>`; }
+  return d+'<path transform="translate(140 37) rotate(-14) scale(.8)" d="M0 0 C6 -7 19 -7 26 0 C19 7 6 7 0 0Z"/>';
+}
+const spark=(x,y,r)=>`<path d="M${x} ${y-r} Q${x} ${y} ${x+r} ${y} Q${x} ${y} ${x} ${y+r} Q${x} ${y} ${x-r} ${y} Q${x} ${y} ${x} ${y-r}Z"/>`;
+const HEART='M62 80 C40 64 32 52 35 41 C38 30 54 28 62 40 C70 28 86 30 89 41 C92 52 84 64 62 80Z';
+const ORN={
+  rosa:{n:'Rosa fina',k:1.7,s:0.6,w:160,h:100,d:'<path d="M0 62 C25 66 45 58 80 54"/><path d="M28 63 C34 48 50 45 58 49 C51 58 40 64 28 63Z"/><path d="M28 63 Q43 56 58 49"/><path d="M50 58 C56 72 70 76 77 71 C70 63 60 59 50 58Z"/><path d="M50 58 Q64 64 77 71"/><path d="M86 52 C82 32 99 19 116 22 C134 26 143 42 137 56 C131 70 112 77 98 71 C91 67 87 60 86 52Z"/><path d="M111 44 c3 -3 8 -1 7 4 c-1 6 -10 8 -14 3 c-5 -6 0 -15 8 -16 c10 -1 17 8 15 17 c-1 8 -9 13 -18 12"/><path d="M92 37 C100 30 112 29 119 33"/><path d="M95 65 C108 70 122 66 130 56"/><path d="M90 50 C90 42 96 37 101 36"/><path d="M80 54 C83 50 85 48 87 47"/><path d="M80 54 C84 58 86 60 89 61"/>'},
+  corazon:{n:'Corazón',w:100,h:100,d:'<path d="M0 52 C14 52 22 50 34 47"/><path d="'+HEART+'"/>'},
+  corazonR:{n:'Corazón relleno',w:100,h:100,d:'<path d="M0 52 C14 52 22 50 34 47"/><path d="'+HEART+'" fill="#000"/>'},
+  latido:{n:'Latido',k:1.1,s:0.85,w:150,h:100,d:'<path d="M0 55 H40 L48 40 L56 72 L64 28 L72 62 L78 55 H90"/><path d="M118 76 C102 64 96 55 99 47 C102 38 113 37 118 46 C123 37 134 38 137 47 C140 55 134 64 118 76Z"/>'},
+  filigrana:{n:'Filigrana',k:1.15,s:0.75,w:140,h:100,d:'<path d="M0 50 C30 50 46 30 70 30 C96 30 104 52 90 62 C78 70 66 60 72 50 C76 44 84 46 84 52"/><path d="M40 50 C56 54 60 74 80 76 C96 77 104 66 98 60"/><path d="M58 32 C56 22 64 16 70 20 C74 24 70 28 66 26"/><circle cx="112" cy="44" r="2.2" fill="#000" stroke="none"/><circle cx="120" cy="50" r="2.8" fill="#000" stroke="none"/><circle cx="128" cy="57" r="3.4" fill="#000" stroke="none"/>'},
+  mandala:{n:'Mandala',k:1.25,s:0.5,w:112,h:100,d:mandalaD()},
+  mariposa:{n:'Mariposa',k:1.3,s:0.75,w:120,h:100,d:'<path d="M0 54 C18 54 30 50 44 44" stroke-dasharray="0.1 6"/><g transform="rotate(-14 80 46)"><path d="M80 30 V62"/><path d="M80 38 C92 20 112 22 108 38 C106 48 92 50 80 46"/><path d="M80 48 C92 50 102 60 96 68 C90 74 82 64 80 54"/><path d="M80 38 C68 20 48 22 52 38 C54 48 68 50 80 46"/><path d="M80 48 C68 50 58 60 64 68 C70 74 78 64 80 54"/><path d="M80 30 C78 24 74 22 71 20"/><path d="M80 30 C82 24 86 22 89 20"/></g>'},
+  estrellas:{n:'Estrellas',w:120,h:100,d:'<path d="M0 52 H12"/>'+spark(30,52,7)+spark(57,44,12)+spark(94,52,20)},
+  luna:{n:'Luna',w:110,h:100,d:'<path d="M0 55 H30"/><path d="M80 23 A28 28 0 1 0 80 77 A22 22 0 1 1 80 23Z"/>'+spark(92,40,7)},
+  infinito:{n:'Infinito',w:140,h:100,d:'<path d="M0 50 H50"/><path d="M85 50 C75 35 50 35 50 50 C50 65 75 65 85 50 C95 35 120 35 120 50 C120 65 95 65 85 50Z"/>'},
+  olivo:{n:'Rama de olivo',k:1.2,s:0.75,w:150,h:100,d:oliveD()},
+  puntos:{n:'Puntos',w:100,h:100,d:[[10,2],[27,3],[45,4],[64,5],[85,6]].map(([x,r])=>`<circle cx="${x}" cy="50" r="${r}" fill="#000" stroke="none"/>`).join('')},
+  cola:{n:'Cola caligráfica',w:200,h:50,d:'<path d="M2 30 C40 44 90 44 120 30 C140 20 160 12 178 16 C192 19 192 32 180 32 C170 32 172 22 182 24"/>'}
+};
+const ODEF={id:'none',pos:'both',size:100,gap:15,off:0,sw:3};
+L.orn=Object.assign({},ODEF,L.orn||{});
+function ornSvg(o,W,H,sw,color){ return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.ceil(W)}" height="${Math.ceil(H)}" viewBox="0 0 ${o.w} ${o.h}" preserveAspectRatio="none"><g fill="none" stroke="${color||'#000'}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${o.d}</g></svg>`; }
+function ornImg(o,W,H,px){
+  const swPx=Math.max(1.5,px*0.017*L.orn.sw/3*1.25*(o.s||1)), sw=swPx*o.h/H;
+  return new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(ornSvg(o,W,H,sw)); });
+}
+async function addSides(c,px){
+  const O=L.orn,o=ORN[O.id]; if(!o||!c) return c;
+  const H=px*0.75*O.size/100*(o.k||1), W=H*o.w/o.h, gap=px*O.gap/100, img=await ornImg(o,W,H,px); if(!img) return c;
+  let cy=c.height/2; if(L.shape==='arc'||L.shape==='semi') cy=c.height-px*0.4; if(L.shape==='smile') cy=px*0.4; cy+=O.off/100*px;
+  const lf=O.pos!=='end', rt=O.pos!=='start', left=lf?W+gap:0, right=rt?W+gap:0;
+  const top=Math.min(0,cy-H/2), bot=Math.max(c.height,cy+H/2);
+  const out=mk(c.width+left+right,bot-top), x=out.getContext('2d'); x.drawImage(c,left,-top);
+  if(lf){ x.save(); x.translate(W,cy-H/2-top); x.scale(-1,1); x.drawImage(img,0,0,W,H); x.restore(); }
+  if(rt) x.drawImage(img,left+c.width+gap,cy-H/2-top,W,H);
+  return out;
+}
+async function addTB(c,px){
+  const O=L.orn,o=ORN[O.id]; if(!o||!c) return c;
+  const H=px*0.6*O.size/100*(o.k||1), W=H*o.w/o.h, gap=Math.max(0,px*(O.gap+O.off)/100), img=await ornImg(o,W,H,px); if(!img) return c;
+  const ow=Math.max(c.width,2*W), out=mk(ow,c.height+gap+H), x=out.getContext('2d'), cx=ow/2;
+  const below=O.pos==='below', ty=below?0:H+gap, oy=below?c.height+gap:0;
+  x.drawImage(c,(ow-c.width)/2,ty);
+  x.drawImage(img,cx,oy,W,H); x.save(); x.translate(cx,oy); x.scale(-1,1); x.drawImage(img,0,0,W,H); x.restore();
+  return out;
+}
+(function(){
+  const g=$('lOrns');
+  g.innerHTML='<button data-o="none"><svg viewBox="0 0 42 24"><path d="M12 6L30 18M30 6L12 18"/></svg>Ninguno</button>'+
+    Object.entries(ORN).map(([k,o])=>`<button data-o="${k}">${ornSvg(o,42,24,3.2,'currentColor').replace('<svg ','<svg class="oi" ').replace('preserveAspectRatio="none"','preserveAspectRatio="xMidYMid meet"')}${o.n}</button>`).join('');
+  g.querySelectorAll('button').forEach(b=>b.onclick=()=>{ L.orn.id=b.dataset.o; syncO(); persist(); renderL(); });
+  $('lOPos').querySelectorAll('button').forEach(b=>b.onclick=()=>{ L.orn.pos=b.dataset.p; syncO(); persist(); renderL(); });
+  [['lOSize','size','%'],['lOGap','gap',''],['lOOff','off',''],['lOSw','sw','']].forEach(([id,k])=>{
+    $(id).addEventListener('input',()=>{ L.orn[k]=+$(id).value; syncO(); renderL(); }); $(id).addEventListener('change',persist); });
+})();
+function syncO(){
+  const O=L.orn;
+  $('lOrns').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.o===O.id));
+  $('lOPos').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===O.pos));
+  $('lOCtl').style.display=O.id==='none'?'none':'block';
+  $('lOSize').value=O.size; $('vLOSize').textContent=O.size+' %';
+  $('lOGap').value=O.gap; $('vLOGap').textContent=O.gap;
+  $('lOOff').value=O.off; $('vLOOff').textContent=O.off>0?'+'+O.off:O.off;
+  $('lOSw').value=O.sw; $('vLOSw').textContent=O.sw;
+}
+syncO();
 
 /* ---------------- Init ---------------- */
 if(saved.estilo) $('estilo').value=saved.estilo;
@@ -1120,7 +1221,6 @@ P.cmpOpacity=0;
 syncCtl(); buildPrompt();
 })();
 </script>
-
 <div class="modal" id="iosModal"><div class="box">
   <h3>Instalar FreyaInk en iPhone / iPad</h3>
   <ol class="ol" style="font-size:14px;color:var(--text)">
