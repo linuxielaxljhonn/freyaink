@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
   --bg:#0e0d12; --panel:#17151d; --panel2:#1f1c27; --line:#2c2836; --text:#f2eee7; --muted:#9b95a8;
@@ -113,6 +114,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px
 .fcard .fn{font-size:11px;color:#777;font-family:Inter,sans-serif}
 .fcard.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(143,107,255,.35)}
 .fcard.na{display:none}
+.fdel{color:#c0392b;font-weight:700;margin-left:4px;padding:0 4px;cursor:pointer}
 .shapes{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .shapes button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;color:var(--muted)}
 .shapes button svg{width:42px;height:24px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round}
@@ -121,9 +123,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px
 .orns button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;color:var(--muted);line-height:1.2}
 .orns button svg{width:46px;height:28px;stroke:currentColor;fill:none;stroke-width:2.4;stroke-linecap:round}
 .orns button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text)}
-.lstage{background:#fff;border-radius:var(--r);min-height:240px;display:grid;place-items:center;padding:18px;position:relative}
-.lstage canvas{max-width:100%;max-height:55vh;width:auto;height:auto;display:block}
-@media(min-width:861px){.a-prev{position:sticky;top:78px}}
+.lstage{background:#fff;border-radius:var(--r);min-height:150px;display:grid;place-items:center;padding:18px;position:relative}
+.lstage canvas{max-width:100%;max-height:30vh;width:auto;height:auto;display:block}
+
 </style>
 </head>
 <body>
@@ -358,10 +360,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px
         <div class="chips" id="lCats"></div>
         <div class="row" style="margin-top:10px">
           <div><input type="text" id="lSearch" placeholder="Buscar fuente por nombre…"></div>
-          <div style="flex:0 0 auto"><label class="btn sm" for="lUpload">⬆ Subir mi fuente</label><input type="file" id="lUpload" accept=".ttf,.otf,.woff,.woff2" style="display:none"></div>
+          <div style="flex:0 0 auto"><label class="btn sm" for="lUpload">⬆ Subir fuentes (.ttf, .otf o .zip)</label><input type="file" id="lUpload" accept=".ttf,.otf,.woff,.woff2,.zip" multiple style="display:none"></div>
         </div>
         <div class="fgrid" id="fontGrid"></div>
-        <p class="hint">Todas son fuentes libres de Google Fonts. Si tienes una fuente comprada (Old English, Chicano…), súbela con «Subir mi fuente» (.ttf/.otf): estará disponible mientras tengas la app abierta.</p>
+        <p class="hint">Todas son fuentes libres de Google Fonts. Puedes añadir las tuyas (FontSpace, DaFont, compradas…): sube los .ttf/.otf o directamente el .zip descargado. Se guardan en este dispositivo y aparecen en «Mis fuentes». Revisa la licencia: muchas gratuitas son solo para uso personal y para tatuar a clientes necesitas la licencia comercial.</p>
       </div>
 
       <div class="card a-shape">
@@ -921,9 +923,12 @@ function buildCats(){
 function buildGallery(){
   const g=$('fontGrid'), smp=esc(sample());
   const list=FONTS.filter(f=>(LCAT==='all'||f.c.includes(LCAT))&&(!LQ||f.n.toLowerCase().includes(LQ)));
-  g.innerHTML=list.map(f=>`<button class="fcard${f.n===L.font?' on':''}" data-n="${esc(f.n)}"><span class="fs" style="font-family:'${f.n}';font-weight:${f.w||400}">${smp}</span><span class="fn">${esc(f.n)}</span></button>`).join('')||'<p class="hint">No hay fuentes con ese nombre.</p>';
+  g.innerHTML=list.map(f=>`<button class="fcard${f.n===L.font?' on':''}" data-n="${esc(f.n)}"><span class="fs" style="font-family:'${f.n}';font-weight:${f.w||400}">${smp}</span><span class="fn">${esc(f.n)}${f.custom?' <span class="fdel" data-del="'+esc(f.n)+'" title="Quitar esta fuente">✕</span>':''}</span></button>`).join('')||'<p class="hint">No hay fuentes con ese nombre.</p>';
   g.querySelectorAll('.fcard').forEach(c=>{
-    c.onclick=()=>{ L.font=c.dataset.n; g.querySelectorAll('.fcard').forEach(x=>x.classList.toggle('on',x===c)); persist(); renderL(); };
+    c.onclick=async ev=>{
+      const del=ev.target.closest('.fdel');
+      if(del){ ev.stopPropagation(); const n=del.dataset.del; await FDB.del(n); const i=FONTS.findIndex(f=>f.n===n); if(i>=0) FONTS.splice(i,1); if(L.font===n) L.font='Great Vibes'; if(!FONTS.some(f=>f.custom)) LCAT='all'; buildCats(); buildGallery(); buildFont2(); renderL(); toast('Fuente quitada'); return; }
+      L.font=c.dataset.n; g.querySelectorAll('.fcard').forEach(x=>x.classList.toggle('on',x===c)); persist(); renderL(); };
     if(io) io.observe(c); else ensureFont(getF(c.dataset.n));
   });
   $('lFontName').textContent=L.font;
@@ -933,16 +938,43 @@ function buildFont2(){
   $('lFont2').value=L.font2||'';
 }
 $('lSearch').addEventListener('input',()=>{LQ=$('lSearch').value.trim().toLowerCase(); buildGallery();});
-$('lUpload').onchange=async e=>{
-  const file=e.target.files[0]; if(!file) return;
-  try{
-    const name='Mi fuente '+file.name.replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N} ]+/gu,' ').trim();
-    const ff=new FontFace(name, await file.arrayBuffer()); await ff.load(); document.fonts.add(ff);
-    FONTS.unshift({n:name,c:['mias'],custom:true}); L.font=name; LCAT='mias';
-    buildCats(); buildGallery(); buildFont2(); renderL(); toast('Fuente añadida ✓');
-  }catch(err){ toast('No se pudo leer esa fuente'); }
-  e.target.value='';
+const FDB={
+  open(){ return new Promise((res,rej)=>{ try{ const r=indexedDB.open('freyaink-fonts',1); r.onupgradeneeded=()=>r.result.createObjectStore('f',{keyPath:'name'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); },
+  async all(){ try{ const db=await this.open(); return await new Promise(res=>{ const q=db.transaction('f').objectStore('f').getAll(); q.onsuccess=()=>res(q.result||[]); q.onerror=()=>res([]); }); }catch(e){ return []; } },
+  async put(name,buf){ try{ const db=await this.open(); await new Promise(res=>{ const t=db.transaction('f','readwrite'); t.objectStore('f').put({name,buf}); t.oncomplete=res; t.onerror=res; }); return true; }catch(e){ return false; } },
+  async del(name){ try{ const db=await this.open(); await new Promise(res=>{ const t=db.transaction('f','readwrite'); t.objectStore('f').delete(name); t.oncomplete=res; t.onerror=res; }); }catch(e){} }
 };
+async function addCustomFont(fileName,buf,save){
+  const name='Mi · '+fileName.replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N} ]+/gu,' ').replace(/\s+/g,' ').trim();
+  if(FONTS.some(f=>f.n===name)) return name;
+  const ff=new FontFace(name,buf.slice(0)); await ff.load(); document.fonts.add(ff);
+  FONTS.unshift({n:name,c:['mias'],custom:true});
+  if(save) await FDB.put(name,{file:fileName,buf});
+  return name;
+}
+$('lUpload').onchange=async e=>{
+  const files=[...e.target.files]; if(!files.length) return;
+  const items=[];
+  for(const f of files){
+    if(/\.zip$/i.test(f.name)){
+      if(!window.JSZip){ toast('No se pudo abrir el .zip: descomprímelo y sube el .ttf'); continue; }
+      try{ const z=await JSZip.loadAsync(await f.arrayBuffer());
+        for(const [p,entry] of Object.entries(z.files)){ if(!entry.dir && /\.(ttf|otf|woff2?)$/i.test(p) && !/__MACOSX/.test(p)) items.push({name:p.split('/').pop(),buf:await entry.async('arraybuffer')}); }
+      }catch(err){ toast('No se pudo leer '+f.name); }
+    } else items.push({name:f.name,buf:await f.arrayBuffer()});
+  }
+  let ok=0,last=null;
+  for(const it of items){ try{ last=await addCustomFont(it.name,it.buf,true); ok++; }catch(err){} }
+  e.target.value='';
+  if(!ok){ toast('No se encontró ninguna fuente válida'); return; }
+  L.font=last; LCAT='mias'; buildCats(); buildGallery(); buildFont2(); persist(); renderL();
+  toast(ok===1?'Fuente añadida y guardada ✓':ok+' fuentes añadidas y guardadas ✓');
+};
+(async()=>{
+  const list=await FDB.all(); let n=0;
+  for(const r of list){ try{ const ff=new FontFace(r.name,r.buf.buf.slice(0)); await ff.load(); document.fonts.add(ff); if(!FONTS.some(f=>f.n===r.name)){ FONTS.unshift({n:r.name,c:['mias'],custom:true}); n++; } }catch(e){} }
+  if(n){ buildCats(); buildGallery(); buildFont2(); if(getF(L.font).n===L.font) renderL(); }
+})();
 
 /* fechas */
 const roman=n=>{const m=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];let s='';for(const [v,r] of m) while(n>=v){s+=r;n-=v;}return s;};
