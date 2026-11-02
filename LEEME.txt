@@ -1,0 +1,36 @@
+FreyaInk - app instalable (PWA)
+================================
+
+Contenido:
+  index.html             la app
+  manifest.webmanifest   nombre, icono y colores de la app instalada
+  sw.js                  permite instalarla y usarla sin conexión
+  icons/                 iconos
+
+COMO PUBLICARLA (elige una opción)
+
+A) Netlify Drop (gratis, 2 minutos, sin saber programar)
+   1. Descomprime este ZIP.
+   2. Entra en https://app.netlify.com/drop
+   3. Arrastra la carpeta "freyaink-pwa" a la página.
+   4. Te da un enlace https://xxxx.netlify.app -> ábrelo en el móvil.
+   (Crea una cuenta gratis para que el enlace no caduque y puedas cambiarle el nombre.)
+
+B) En tu propio hosting (p. ej. el de la web de Freya Massage Plus)
+   Sube la carpeta completa a una subcarpeta, por ejemplo:
+   https://tudominio.com/freyaink/
+   Tiene que ser HTTPS.
+
+COMO INSTALARLA
+  - Android / Chrome / ordenador: botón "Instalar app" arriba a la derecha
+    (o menú del navegador -> "Instalar aplicación").
+  - iPhone / iPad: abrir en Safari -> Compartir -> "Añadir a pantalla de inicio".
+
+SIN CONEXIÓN
+  Tras abrirla una vez con internet, funciona sin conexión. Las tipografías
+  de lettering que hayas usado quedan guardadas; las que no hayas abierto
+  nunca necesitan internet la primera vez.
+
+ACTUALIZAR
+  Sustituye los archivos en el hosting. Si cambias sw.js, sube el número de
+  VERSION (freyaink-v1 -> freyaink-v2) para que los móviles se actualicen.
