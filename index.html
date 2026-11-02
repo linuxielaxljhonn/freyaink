@@ -360,10 +360,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:12px
         <div class="chips" id="lCats"></div>
         <div class="row" style="margin-top:10px">
           <div><input type="text" id="lSearch" placeholder="Buscar fuente por nombre…"></div>
-          <div style="flex:0 0 auto"><label class="btn sm" for="lUpload">⬆ Subir fuentes (.ttf, .otf o .zip)</label><input type="file" id="lUpload" accept=".ttf,.otf,.woff,.woff2,.zip" multiple style="display:none"></div>
+          <div style="flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap"><label class="btn sm" for="lUpload">⬆ Subir / importar fuentes</label><button class="btn sm" id="lExport" style="display:none">⬇ Exportar mis fuentes</button><input type="file" id="lUpload" accept=".ttf,.otf,.woff,.woff2,.zip" multiple style="display:none"></div>
         </div>
         <div class="fgrid" id="fontGrid"></div>
-        <p class="hint">Todas son fuentes libres de Google Fonts. Puedes añadir las tuyas (FontSpace, DaFont, compradas…): sube los .ttf/.otf o directamente el .zip descargado. Se guardan en este dispositivo y aparecen en «Mis fuentes». Revisa la licencia: muchas gratuitas son solo para uso personal y para tatuar a clientes necesitas la licencia comercial.</p>
+        <p class="hint">Todas son fuentes libres de Google Fonts. Puedes añadir las tuyas (FontSpace, DaFont, compradas…): sube los .ttf/.otf o directamente el .zip descargado. Se guardan en este dispositivo y aparecen en «Mis fuentes». Para pasarlas a otro aparato: «Exportar mis fuentes» crea un .zip; envíatelo (WhatsApp, Drive…) y en el otro dispositivo pulsa «Subir / importar fuentes». Revisa la licencia: muchas gratuitas son solo para uso personal y para tatuar a clientes necesitas la licencia comercial.</p>
       </div>
 
       <div class="card a-shape">
@@ -917,6 +917,7 @@ function sample(){ const l=(L.text.split('\n').find(x=>x.trim())||'Lucía').trim
 const io=('IntersectionObserver' in window)?new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ io.unobserve(e.target); const f=getF(e.target.dataset.n); ensureFont(f).then(ok=>{ if(!ok) e.target.classList.add('na'); }); } }),{rootMargin:'250px'}):null;
 function buildCats(){
   const has=FONTS.some(f=>f.custom);
+  $('lExport').style.display=has?'':'none';
   $('lCats').innerHTML=CATS.filter(c=>c[0]!=='mias'||has).map(c=>`<button data-c="${c[0]}" class="${c[0]===LCAT?'on':''}">${c[1]}</button>`).join('');
   $('lCats').querySelectorAll('button').forEach(b=>b.onclick=()=>{LCAT=b.dataset.c; buildCats(); buildGallery();});
 }
@@ -969,6 +970,18 @@ $('lUpload').onchange=async e=>{
   if(!ok){ toast('No se encontró ninguna fuente válida'); return; }
   L.font=last; LCAT='mias'; buildCats(); buildGallery(); buildFont2(); persist(); renderL();
   toast(ok===1?'Fuente añadida y guardada ✓':ok+' fuentes añadidas y guardadas ✓');
+};
+
+$('lExport').onclick=async()=>{
+  if(!window.JSZip){ toast('No se pudo cargar el compresor; revisa la conexión'); return; }
+  const list=await FDB.all(); if(!list.length){ toast('No tienes fuentes propias guardadas'); return; }
+  const z=new JSZip(), used={};
+  list.forEach(r=>{ let fn=(r.buf&&r.buf.file)||(r.name+'.ttf'); fn=fn.split('/').pop(); if(used[fn]){ fn=fn.replace(/(\.[^.]+)?$/,'-'+(++used[fn])+'$1'); } else used[fn]=1; z.file(fn,r.buf.buf); });
+  const blob=await z.generateAsync({type:'blob',compression:'DEFLATE'});
+  const d=new Date(), stamp=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+  if(DL){ try{ await DL.save({filename:'freyaink-fuentes-'+stamp+'.zip',data:blob}); toast(list.length+' fuentes exportadas ✓'); }catch(e){ if(e&&e.code!=='declined') toast('No se pudo descargar aquí'); } return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='freyaink-fuentes-'+stamp+'.zip'; document.body.appendChild(a); a.click(); a.remove();
+  toast(list.length+' fuentes exportadas ✓');
 };
 (async()=>{
   const list=await FDB.all(); let n=0;
